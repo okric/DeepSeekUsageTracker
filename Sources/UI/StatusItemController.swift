@@ -46,11 +46,7 @@ final class StatusItemController: NSObject, NSMenuDelegate {
         let secondary: String
         let accent: NSColor
 
-        if model.isImportingHarness {
-            primary = "Importing…"
-            secondary = "Harness login"
-            accent = .systemBlue
-        } else if model.isSigningIn {
+        if model.isSigningIn {
             primary = "Signing in…"
             secondary = "Check browser"
             accent = .systemBlue
@@ -135,12 +131,6 @@ final class StatusItemController: NSObject, NSMenuDelegate {
     }
 
     private func addSetupMenu() {
-        if model.harnessAvailable {
-            addAction(
-                "Use DeepSeek Harness Login",
-                action: #selector(importHarnessAction),
-                symbol: "arrow.down.circle")
-        }
         addAction(
             "Sign in with DeepSeek…",
             action: #selector(signInAction),
@@ -199,19 +189,15 @@ final class StatusItemController: NSObject, NSMenuDelegate {
         } else {
             addSecondary("Today   —")
             if !model.hasAccountToken {
-                if model.harnessAvailable {
-                    addAction(
-                        "Use Harness login for usage",
-                        action: #selector(importHarnessAction),
-                        symbol: "arrow.down.circle")
-                }
                 addAction(
                     "Sign in for usage…",
                     action: #selector(signInAction),
                     symbol: "person.crop.circle.badge.checkmark")
             } else if snapshot.needsReauth {
                 addAction(
-                    "Session expired — sign in again…",
+                    model.tokenSource == .harness
+                        ? "Session expired — re-sign in from DeepSeek Harness…"
+                        : "Session expired — sign in again…",
                     action: #selector(signInAction),
                     symbol: "exclamationmark.arrow.trianglehead.counterclockwise")
             }
@@ -252,10 +238,7 @@ final class StatusItemController: NSObject, NSMenuDelegate {
         }
         if snapshot.needsReauth {
             if model.tokenSource == .harness {
-                addAction(
-                    "Re-import Harness login…",
-                    action: #selector(importHarnessAction),
-                    symbol: "arrow.down.circle")
+                addSecondary("Harness file: re-sign in from DeepSeek Harness (DSH) to renew.")
             }
             addAction(
                 "Sign in again…",
@@ -376,16 +359,6 @@ final class StatusItemController: NSObject, NSMenuDelegate {
 
     @objc private func signInAction() {
         model.signIn()
-    }
-
-    @objc private func importHarnessAction() {
-        Task {
-            do {
-                try await model.importHarnessLogin()
-            } catch {
-                // The model publishes the error; the menu and settings show it.
-            }
-        }
     }
 
     @objc private func refreshAction() {

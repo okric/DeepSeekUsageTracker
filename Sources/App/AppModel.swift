@@ -14,7 +14,6 @@ final class AppModel: ObservableObject {
     @Published private(set) var snapshot = AppSnapshot()
     @Published private(set) var isLoading = false
     @Published private(set) var isSigningIn = false
-    @Published private(set) var isImportingHarness = false
     @Published private(set) var hasAPIKey = false
     @Published private(set) var hasOAuthToken = false
     @Published private(set) var hasUsageToken = false
@@ -115,17 +114,35 @@ final class AppModel: ObservableObject {
             snapshot.isLoading = false
         }
 
-        let apiKey = credentials.read(.apiKey)
-        let oauthToken = credentials.read(.oauthToken)
+        let harness = try? HarnessImporter.load()
+        harnessAvailable = HarnessImporter.fileExists()
+        let keychainAPIKey = credentials.read(.apiKey)
+        let keychainOAuth = credentials.read(.oauthToken)
         let usageToken = credentials.read(.usageToken)
+        // Prefer explicit user credentials; the Harness file is used live,
+        // in memory, so the CLI/DSH token renewals are always current.
+        let apiKey = keychainAPIKey ?? harness?.apiKey
+        let oauthToken = keychainOAuth ?? harness?.accountToken
         hasAPIKey = apiKey != nil
         hasOAuthToken = oauthToken != nil
         hasUsageToken = usageToken != nil
+        tokenSource = keychainOAuth != nil
+            ? .browser
+            : (harness != nil ? .harness : .none)
 
         guard apiKey != nil || oauthToken != nil || usageToken != nil else {
             snapshot = AppSnapshot()
             lastError = nil
             return
+        }
+
+        // The Harness path has no sign-in UI that could record an account
+        // name; fetch it once when it is still unknown.
+        if tokenSource == .harness, accountName == nil, let oauthToken {
+            if let user = try? await api.fetchProfile(token: oauthToken, kind: .oauth) {
+                accountName = user.displayName ?? user.contact
+                defaults.set(accountName, forKey: accountNameKey)
+            }
         }
 
         let preferredCurrency = snapshot.balance?.currency
@@ -233,51 +250,12 @@ final class AppModel: ObservableObject {
         }
     }
 
-    // MARK: DeepSeek Harness import
+    // MARK: Harness identity
 
+    /// The Harness credential file is the identity source when present; the
+    /// model reads it live on every refresh (no copied tokens).
     func checkHarnessAvailability() {
         harnessAvailable = HarnessImporter.fileExists()
-    }
-
-    func importHarnessAPIKey() async throws {
-        let login = try HarnessImporter.load()
-        guard let apiKey = login.apiKey, !apiKey.isEmpty else {
-            throw HarnessImportError.noAPIKey
-        }
-        try credentials.save(apiKey, for: .apiKey)
-        hasAPIKey = true
-        await refresh()
-    }
-
-    func importHarnessLogin() async throws {
-        guard !isImportingHarness else { return }
-        isImportingHarness = true
-        lastError = nil
-        defer { isImportingHarness = false }
-
-        do {
-            let login = try HarnessImporter.load()
-            try credentials.save(login.accountToken, for: .oauthToken)
-            hasOAuthToken = true
-            tokenSource = .harness
-            defaults.set(TokenSource.harness.rawValue, forKey: tokenSourceKey)
-
-            if !hasAPIKey, let apiKey = login.apiKey, !apiKey.isEmpty {
-                try? credentials.save(apiKey, for: .apiKey)
-                hasAPIKey = credentials.has(.apiKey)
-            }
-
-            if let user = try? await api.fetchProfile(token: login.accountToken, kind: .oauth) {
-                let name = user.displayName ?? user.contact
-                accountName = name
-                defaults.set(name, forKey: accountNameKey)
-            }
-
-            await refresh()
-        } catch {
-            lastError = message(for: error)
-            throw error
-        }
     }
 
     // MARK: Browser sign-in
@@ -481,6 +459,9 @@ final class AppModel: ObservableObject {
         guard !isChangingLaunchAtLogin else { return }
         isChangingLaunchAtLogin = true
         launchAtLoginError = nil
+        // Optimistic so the toggle slides immediately; the task re-derives
+        // the real state from SMAppService when the operation completes.
+        launchAtLogin = enabled
         Task {
             defer {
                 isChangingLaunchAtLogin = false

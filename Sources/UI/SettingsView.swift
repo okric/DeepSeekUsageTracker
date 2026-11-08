@@ -7,7 +7,6 @@ struct SettingsView: View {
     @State private var usageTokenInput = ""
     @State private var apiKeyMessage: String?
     @State private var usageTokenMessage: String?
-    @State private var harnessMessage: String?
     @State private var isSavingAPIKey = false
     @State private var isSavingUsageToken = false
     @State private var showUsageToken = false
@@ -51,7 +50,8 @@ struct SettingsView: View {
             }
         }
         .formStyle(.grouped)
-        .frame(width: 540, height: 740)
+        .frame(width: 540)
+        .fixedSize(horizontal: false, vertical: true)
         .onAppear {
             model.checkHarnessAvailability()
             model.refreshLaunchAtLoginStatus()
@@ -71,64 +71,45 @@ struct SettingsView: View {
                     Text(model.accountName ?? "Signed in to DeepSeek")
                         .font(.headline)
                     Text(model.tokenSource == .harness
-                         ? "via DeepSeek Harness"
-                         : "via browser sign-in")
+                         ? "via DeepSeek Harness — read live from ~/.dsh/.credentials.yaml, nothing is copied or stored"
+                         : "via browser sign-in — token kept in the Keychain")
                         .font(.caption)
                         .foregroundStyle(.secondary)
                 }
                 Spacer()
-                Button("Sign Out") {
-                    model.signOut()
-                    harnessMessage = nil
+                if model.tokenSource == .browser {
+                    Button("Sign Out") {
+                        model.signOut()
+                    }
+                    .buttonStyle(.bordered)
                 }
-                .buttonStyle(.bordered)
             }
 
             if model.snapshot.needsReauth {
-                Label("This session was rejected. Sign in again or re-import the Harness login.",
+                Label(model.tokenSource == .harness
+                      ? "This session was rejected. Re-sign in from DeepSeek Harness."
+                      : "This session was rejected. Sign in again.",
                       systemImage: "exclamationmark.triangle.fill")
                     .font(.caption)
                     .foregroundStyle(.orange)
             }
-
-            if model.tokenSource == .harness, model.harnessAvailable {
-                Button("Re-import Harness Login") {
-                    importHarness()
-                }
-                .buttonStyle(.bordered)
-                .disabled(model.isImportingHarness)
-            }
+        } else if model.harnessAvailable {
+            Label("DeepSeek Harness is signed in — used automatically", systemImage: "checkmark.seal.fill")
+                .foregroundStyle(.green)
+                .font(.callout)
         } else {
-            Text("Reuse the DeepSeek account you're already signed into in DeepSeek Harness, or sign in with the browser.")
+            Text("If DeepSeek Harness is signed in, this app uses its login automatically (read-only, nothing is stored). Otherwise you can sign in with the browser.")
                 .font(.caption)
                 .foregroundStyle(.secondary)
-
-            if model.harnessAvailable {
-                Button {
-                    importHarness()
-                } label: {
-                    Label("Use DeepSeek Harness Login", systemImage: "arrow.down.circle")
-                }
-                .buttonStyle(.borderedProminent)
-                .disabled(model.isImportingHarness || model.isSigningIn)
-
-                Text("Reads ~/.dsh/.credentials.yaml once. The account token is copied to your Keychain; the app never watches or uploads that file.")
-                    .font(.caption2)
-                    .foregroundStyle(.secondary)
-            } else {
-                Text("No Harness credential file found at ~/.dsh/.credentials.yaml.")
-                    .font(.caption2)
-                    .foregroundStyle(.secondary)
-            }
 
             Button {
                 model.signIn()
             } label: {
                 Label("Sign in with DeepSeek…", systemImage: "person.crop.circle.badge.checkmark")
             }
-            .disabled(model.isSigningIn || model.isImportingHarness)
+            .disabled(model.isSigningIn)
 
-            Text("Opens platform.deepseek.com and returns through a one-time localhost callback. The token is stored in Keychain.")
+            Text("Opens platform.deepseek.com and returns through a one-time localhost callback. The token is stored in the Keychain.")
                 .font(.caption2)
                 .foregroundStyle(.secondary)
 
@@ -141,20 +122,8 @@ struct SettingsView: View {
                     Button("Cancel") { model.cancelSignIn() }
                 }
             }
-            if model.isImportingHarness {
-                HStack(spacing: 8) {
-                    ProgressView().controlSize(.small)
-                    Text("Importing Harness login…")
-                        .font(.caption)
-                }
-            }
         }
 
-        if let harnessMessage {
-            Text(harnessMessage)
-                .font(.caption)
-                .foregroundStyle(.secondary)
-        }
         if let lastError = model.lastError, !model.isSigningIn {
             Text(lastError)
                 .font(.caption)
@@ -168,16 +137,15 @@ struct SettingsView: View {
     @ViewBuilder
     private var apiKeyContent: some View {
         if model.hasAPIKey {
-            Label("API key saved in Keychain", systemImage: "checkmark.seal.fill")
+            Label("API key available", systemImage: "checkmark.seal.fill")
                 .foregroundStyle(.green)
                 .font(.callout)
-        } else {
-            Text("Optional. Uses the official `api.deepseek.com/user/balance` endpoint. Without a key the app uses the signed-in platform account for balance.")
-                .font(.caption)
-                .foregroundStyle(.secondary)
         }
+        Text("Optional override for the official `api.deepseek.com/user/balance` endpoint. When DeepSeek Harness is signed in, its API key is picked up automatically — no copy stored.")
+            .font(.caption)
+            .foregroundStyle(.secondary)
 
-        SecureField(model.hasAPIKey ? "Paste a new key to replace" : "sk-…", text: $apiKeyInput)
+        SecureField(model.hasAPIKey ? "Paste a key to override the automatic ones" : "sk-…", text: $apiKeyInput)
             .textFieldStyle(.roundedBorder)
             .onSubmit { saveAPIKey() }
 
@@ -191,17 +159,10 @@ struct SettingsView: View {
                 ProgressView().controlSize(.small)
             }
 
-            if !model.hasAPIKey, model.harnessAvailable {
-                Button("Import from Harness") {
-                    importHarnessAPIKey()
-                }
-                .disabled(isSavingAPIKey)
-            }
-
             Spacer()
 
             if model.hasAPIKey {
-                Button("Remove", role: .destructive) {
+                Button("Remove Stored Key", role: .destructive) {
                     model.removeAPIKey()
                     apiKeyMessage = nil
                 }
@@ -273,6 +234,15 @@ struct SettingsView: View {
         .pickerStyle(.menu)
 
         HStack {
+            if let updated = model.snapshot.updatedAt {
+                Text("Last updated \(updated.formatted(date: .omitted, time: .standard))")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+            } else {
+                Spacer()
+            }
+
             Button("Refresh Now") {
                 model.refreshNow()
             }
@@ -281,12 +251,6 @@ struct SettingsView: View {
             if model.isLoading {
                 ProgressView().controlSize(.small)
             }
-        }
-
-        if let updated = model.snapshot.updatedAt {
-            Text("Last updated \(updated.formatted(date: .omitted, time: .standard))")
-                .font(.caption)
-                .foregroundStyle(.secondary)
         }
     }
 
@@ -335,47 +299,19 @@ struct SettingsView: View {
 
     @ViewBuilder
     private var privacyContent: some View {
-        Text("The API key, account token, and optional usage token are stored as generic passwords in the macOS Keychain with `AfterFirstUnlockThisDeviceOnly`. Nothing is written to `.env`, plists, or logs, and there is no telemetry.")
+        Text("The API key and the browser sign-in token are stored as generic passwords in the macOS Keychain with `AfterFirstUnlockThisDeviceOnly`. The DeepSeek Harness login is never copied: it is read live from `~/.dsh/.credentials.yaml` only at request time. There is no `.env`, no plist secrets, no logging of credentials, and no telemetry.")
             .font(.caption)
             .foregroundStyle(.secondary)
 
-        Text("The Harness importer reads ~/.dsh/.credentials.yaml only when you click the import button. It copies the token (and API key, if present) into this app's Keychain; it does not watch or modify the Harness file.")
-            .font(.caption)
-            .foregroundStyle(.secondary)
-
-        Text("DeepSeek's browser sign-in uses the same PKCE authorization flow as DeepSeek Harness. It is undocumented and may change; the API key and manual token are fallbacks.")
+        Text("The Harness file is only read when it exists and only from the stable grant record the app documents. It is never watched or written; renew the login from DeepSeek Harness itself and refresh here.")
             .font(.caption2)
             .foregroundStyle(.tertiary)
 
+        Link("Project page: github.com/okric/DeepseekUsageTracker", destination: URL(string: "https://github.com/okric/DeepseekUsageTracker")!)
         Link("Open DeepSeek usage page", destination: URL(string: "https://platform.deepseek.com/usage")!)
-        Link("GitHub: okric", destination: URL(string: "https://github.com/okric")!)
     }
 
     // MARK: Actions
-
-    private func importHarness() {
-        harnessMessage = nil
-        Task {
-            do {
-                try await model.importHarnessLogin()
-                harnessMessage = "Harness login imported."
-            } catch {
-                harnessMessage = error.localizedDescription
-            }
-        }
-    }
-
-    private func importHarnessAPIKey() {
-        apiKeyMessage = nil
-        Task {
-            do {
-                try await model.importHarnessAPIKey()
-                apiKeyMessage = "API key imported from Harness."
-            } catch {
-                apiKeyMessage = error.localizedDescription
-            }
-        }
-    }
 
     private func saveAPIKey() {
         let value = apiKeyInput.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -386,7 +322,7 @@ struct SettingsView: View {
             do {
                 try await model.saveAPIKey(value)
                 apiKeyInput = ""
-                apiKeyMessage = "API key verified and saved."
+                apiKeyMessage = "API key verified and stored."
             } catch {
                 apiKeyMessage = error.localizedDescription
             }
