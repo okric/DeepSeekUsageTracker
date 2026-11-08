@@ -74,6 +74,25 @@ xcodebuild -project DeepseekUsageTracker.xcodeproj \
   -derivedDataPath build build
 ```
 
+## Updates
+
+The app updates itself with [Sparkle 2](https://sparkle-project.org). Each
+release publishes an `appcast.xml` beside the DMG; the app reads `SUFeedURL`
+from `Info.plist` (`…/releases/latest/download/appcast.xml`), verifies the
+EdDSA signature against `SUPublicEDKey`, and installs silently. Checks run
+daily, and "Check for Updates…" lives in the menu.
+
+- The signing key is a single Ed25519 key for all okric apps, stored in the
+  login keychain under account `okric`. Restore it with
+  `generate_keys --account okric -f <backup-file>`; the exported key belongs
+  in a password manager. Losing it means existing installs can never be
+  updated again.
+- `Scripts/notarize.sh` bumps `MARKETING_VERSION` and `CURRENT_PROJECT_VERSION`
+  (Sparkle compares the build number), re-signs the embedded Sparkle framework
+  inside-out, and generates + uploads `appcast.xml`.
+- Releases before the first Sparkle build have no updater; install that one
+  manually from the DMG.
+
 ## Layout
 
 ```

@@ -20,3 +20,6 @@ dist/
 *.app.zip
 *.dSYM
 *.xcresult
+
+# Coverage artifacts
+*.profraw

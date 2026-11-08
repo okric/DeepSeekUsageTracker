@@ -26,5 +26,15 @@
 	<true/>
 	<key>NSHumanReadableCopyright</key>
 	<string>© 2026 okric (https://github.com/okric)</string>
+	<key>SUAutomaticallyUpdate</key>
+	<true/>
+	<key>SUEnableAutomaticChecks</key>
+	<true/>
+	<key>SUFeedURL</key>
+	<string>https://github.com/okric/DeepseekUsageTracker/releases/latest/download/appcast.xml</string>
+	<key>SUPublicEDKey</key>
+	<string>nLHOxrZ89AAjWC4h/2XbK0S7iKI7c5Qv3qZ0M2Hqp/M=</string>
+	<key>SUScheduledCheckInterval</key>
+	<integer>86400</integer>
 </dict>
 </plist>
