@@ -177,7 +177,6 @@ struct SettingsView: View {
             .foregroundStyle(.tertiary)
 
         Link("Project page: github.com/okric/DeepseekUsageTracker", destination: URL(string: "https://github.com/okric/DeepseekUsageTracker")!)
-        Link("Open DeepSeek usage page", destination: URL(string: "https://platform.deepseek.com/usage")!)
     }
 }
 
