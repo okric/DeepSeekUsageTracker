@@ -5,12 +5,14 @@
 set -euo pipefail
 
 APP_NAME="DeepseekUsageTracker"
-VERSION="0.2.0"
 IDENTITY="Developer ID Application: Ricardo Oliveira (2SD8E9M8T7)"
 KEYCHAIN_PROFILE="okric-notary"
 REPO="okric/${APP_NAME}"
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
+# Version tracks the project's MARKETING_VERSION.
+VERSION="$(sed -n 's/^[[:space:]]*MARKETING_VERSION = //p' "$ROOT/${APP_NAME}.xcodeproj/project.pbxproj" | head -1 | tr -d " ;")"
+[ -n "$VERSION" ] || { echo "MARKETING_VERSION not found"; exit 1; }
 WORK="$(mktemp -d)"
 trap 'rm -rf "$WORK"' EXIT
 
@@ -46,6 +48,12 @@ hdiutil create -quiet -volname "${APP_NAME} ${VERSION}" -srcfolder "$STAGE_DIR" 
 shasum -a 256 "$DMG"
 
 echo "== publish =="
+if ! gh release view "v${VERSION}" --repo "$REPO" >/dev/null 2>&1; then
+    gh release create "v${VERSION}" \
+        --repo "$REPO" \
+        --title "${APP_NAME} ${VERSION}" \
+        --notes "Universal binary, hardened runtime, Developer ID signed and Apple-notarized. Staged manually, see release notes below."
+fi
 gh release upload "v${VERSION}" --repo "$REPO" "$DMG" --clobber
 echo "Done: https://github.com/$REPO/releases/tag/v${VERSION}"
 rm -rf "$ROOT/build/release"
