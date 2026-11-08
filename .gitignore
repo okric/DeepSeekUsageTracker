@@ -1,0 +1,22 @@
+# macOS
+.DS_Store
+
+# Local secrets
+.env
+.env.*
+!.env.example
+
+# IDEs
+.idea/
+.vscode/
+xcuserdata/
+*.xcuserstate
+
+# Xcode build products
+build/
+DerivedData/
+dist/
+*.app
+*.app.zip
+*.dSYM
+*.xcresult
