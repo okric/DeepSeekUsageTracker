@@ -46,10 +46,14 @@ final class StatusItemController: NSObject, NSMenuDelegate {
         let secondary: String
         let accent: NSColor
 
-        if model.isSigningIn {
-            primary = "Signing in…"
-            secondary = "Check browser"
-            accent = .systemBlue
+        if !model.harnessAvailable {
+            primary = "Harness"
+            secondary = "install"
+            accent = .systemGray
+        } else if model.harnessSetupError != nil {
+            primary = "Harness"
+            secondary = "sign in"
+            accent = .systemOrange
         } else if let balance = snapshot.balance {
             primary = Fmt.money(balance.total, currency: balance.currency)
             if let usage = snapshot.usage, let cost = usage.cost {
@@ -66,15 +70,6 @@ final class StatusItemController: NSObject, NSMenuDelegate {
             } else {
                 accent = .systemGreen
             }
-        } else if !model.hasAnyCredential {
-            if model.harnessAvailable {
-                primary = "Harness"
-                secondary = "sign in"
-            } else {
-                primary = "Sign in"
-                secondary = "DeepSeek"
-            }
-            accent = .systemGray
         } else if model.isLoading {
             primary = "Loading…"
             secondary = "DeepSeek"
@@ -95,10 +90,14 @@ final class StatusItemController: NSObject, NSMenuDelegate {
     }
 
     private func tooltip(primary: String, secondary: String, snapshot: AppSnapshot) -> String {
-        if let error = snapshot.error, !error.isEmpty {
-            return "DeepSeek — \(primary) · \(secondary)\n\(error)"
+        var lines = ["DeepSeek — \(primary) · \(secondary)"]
+        if let setupError = model.harnessSetupError, !setupError.isEmpty {
+            lines.append(setupError)
         }
-        return "DeepSeek — \(primary) · \(secondary)"
+        if let error = snapshot.error, !error.isEmpty {
+            lines.append(error)
+        }
+        return lines.joined(separator: "\n")
     }
 
     private func rebuildMenu() {
@@ -112,12 +111,26 @@ final class StatusItemController: NSObject, NSMenuDelegate {
 
         if let name = model.accountName, !name.isEmpty {
             addDisabled(name, secondary: true)
-        } else if model.hasOAuthToken {
+        } else if model.harnessSetupError == nil, model.harnessAvailable {
             addDisabled("DeepSeek account", secondary: true)
         }
 
-        guard model.hasAnyCredential else {
-            addSetupMenu()
+        // No usable Harness login: explain and point at the source.
+        if !model.harnessAvailable {
+            addSecondary("OpenCode-style single source: the DeepSeek Harness login.")
+            addSecondary("Missing: ~/.dsh/.credentials.yaml")
+            addSecondary("Install and sign in to DeepSeek Harness.")
+            menu.addItem(.separator())
+            addAction("Open DeepSeek Harness", action: #selector(openHarnessAction), symbol: "app.badge")
+            menu.addItem(.separator())
+            addFooter()
+            return
+        }
+        if let setupError = model.harnessSetupError {
+            addWarning(setupError)
+            menu.addItem(.separator())
+            addAction("Open DeepSeek Harness", action: #selector(openHarnessAction), symbol: "app.badge")
+            menu.addItem(.separator())
             addFooter()
             return
         }
@@ -128,17 +141,6 @@ final class StatusItemController: NSObject, NSMenuDelegate {
         addErrorSection()
         addUpdatedRow()
         addFooter()
-    }
-
-    private func addSetupMenu() {
-        addAction(
-            "Sign in with DeepSeek…",
-            action: #selector(signInAction),
-            symbol: "person.crop.circle.badge.checkmark")
-        addAction(
-            "Enter API Key…",
-            action: #selector(settingsAction),
-            symbol: "key")
     }
 
     private func addBalanceSection() {
@@ -159,9 +161,6 @@ final class StatusItemController: NSObject, NSMenuDelegate {
             }
         } else {
             addSecondary("Balance unavailable")
-            if !model.hasAPIKey {
-                addAction("Add API key…", action: #selector(settingsAction), symbol: "key")
-            }
         }
     }
 
@@ -188,19 +187,6 @@ final class StatusItemController: NSObject, NSMenuDelegate {
             addSevenDaySubmenu(usage: usage)
         } else {
             addSecondary("Today   —")
-            if !model.hasAccountToken {
-                addAction(
-                    "Sign in for usage…",
-                    action: #selector(signInAction),
-                    symbol: "person.crop.circle.badge.checkmark")
-            } else if snapshot.needsReauth {
-                addAction(
-                    model.tokenSource == .harness
-                        ? "Session expired — re-sign in from DeepSeek Harness…"
-                        : "Session expired — sign in again…",
-                    action: #selector(signInAction),
-                    symbol: "exclamationmark.arrow.trianglehead.counterclockwise")
-            }
         }
     }
 
@@ -237,13 +223,8 @@ final class StatusItemController: NSObject, NSMenuDelegate {
             addSecondary("…")
         }
         if snapshot.needsReauth {
-            if model.tokenSource == .harness {
-                addSecondary("Harness file: re-sign in from DeepSeek Harness (DSH) to renew.")
-            }
-            addAction(
-                "Sign in again…",
-                action: #selector(signInAction),
-                symbol: "person.crop.circle.badge.checkmark")
+            addSecondary("Session rejected — re-sign in from DeepSeek Harness, then refresh.")
+            addAction("Open DeepSeek Harness", action: #selector(openHarnessAction), symbol: "app.badge")
         }
     }
 
@@ -357,8 +338,8 @@ final class StatusItemController: NSObject, NSMenuDelegate {
 
     // MARK: Actions
 
-    @objc private func signInAction() {
-        model.signIn()
+    @objc private func openHarnessAction() {
+        model.openHarnessApp()
     }
 
     @objc private func refreshAction() {

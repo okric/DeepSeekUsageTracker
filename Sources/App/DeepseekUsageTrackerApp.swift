@@ -65,7 +65,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         // The test bundle loads the app as its host. Keep unit tests free of
-        // Keychain reads, timers, and network requests.
+        // file reads, timers, and network requests.
         let environment = ProcessInfo.processInfo.environment
         if environment["XCTestConfigurationFilePath"] != nil
             || environment["XCODE_RUNNING_FOR_PREVIEWS"] == "1" {
@@ -83,7 +83,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         model.start()
 
         let defaults = UserDefaults.standard
-        if !model.hasAnyCredential && !defaults.bool(forKey: "hasLaunchedBefore") {
+        // Show setup on first launch only when no Harness login can be found
+        // (harnessSetupError is only meaningful after the first refresh).
+        if !model.harnessAvailable && !defaults.bool(forKey: "hasLaunchedBefore") {
             defaults.set(true, forKey: "hasLaunchedBefore")
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
                 settings.show()
