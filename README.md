@@ -99,3 +99,5 @@ docs/         README screenshots (sample values, not account data)
 - [DeepSeek Harness account-platform package](https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/credentials/deepseek-account-platform/README.md)
 
 Project author: [okric](https://github.com/okric)
+
+> **Vibe coding note:** The code in this project was "vibe coded" with [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness) and **DeepSeek V4.1 Flash**.
