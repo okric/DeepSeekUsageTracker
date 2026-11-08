@@ -50,10 +50,11 @@ DeepSeek does not document a public usage API. The usage endpoints are the priva
 
 ## Build and test
 
-Requirements: macOS 14+, Xcode, and [XcodeGen](https://github.com/yonaskolb/XcodeGen).
+Requirements: macOS 14+ and Xcode.
+
+Open `DeepseekUsageTracker.xcodeproj` in Xcode and use **Product → Run** / **Test**, or build and test from the command line:
 
 ```bash
-xcodegen generate
 xcodebuild -project DeepseekUsageTracker.xcodeproj \
   -scheme DeepseekUsageTracker -configuration Debug \
   -derivedDataPath build build
@@ -63,7 +64,7 @@ xcodebuild -project DeepseekUsageTracker.xcodeproj \
   -derivedDataPath build -destination 'platform=macOS' test
 ```
 
-`project.yml` is the source of truth; run `xcodegen generate` after adding or removing files. The 15 tests cover balance/usage parsing, multi-currency cost selection, date windows, PKCE/URL validation, the loopback callback server, the Harness YAML parser, and the Keychain round-trip.
+The checked-in `DeepseekUsageTracker.xcodeproj` is the source of truth. Add or remove files through Xcode’s project navigator so the project updates itself; no project generator is required. The 15 tests cover balance/usage parsing, multi-currency cost selection, date windows, PKCE/URL validation, the loopback callback server, the Harness YAML parser, and the Keychain round-trip.
 
 Release build:
 
@@ -81,7 +82,6 @@ Sources/
   Core/       API client, models, PKCE/browser auth, Keychain, Harness importer
   UI/         Status item drawing, settings window (SwiftUI)
 Tests/        Parser, date, auth, callback, Keychain tests
-project.yml   XcodeGen project definition
 docs/         README screenshots (sample values, not account data)
 ```
 
@@ -100,4 +100,4 @@ docs/         README screenshots (sample values, not account data)
 
 Project author: [okric](https://github.com/okric)
 
-> **Vibe coding note:** The code in this project was "vibe coded" with [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness) and **DeepSeek V4.1 Flash**.
+> **AI usage note:** The code in this project was "vibe coded" with [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness) and **DeepSeek V4.1 Flash**.
