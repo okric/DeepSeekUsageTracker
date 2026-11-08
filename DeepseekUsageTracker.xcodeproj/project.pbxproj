@@ -17,6 +17,7 @@
 		92F7BF864B53C04AE3BCB8AB /* AuthTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8A1A220DFD53C467F2213DE3 /* AuthTests.swift */; };
 		95CBB4CDBD1C31F86BAAF768 /* Models.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9A5585BBD0B5B218BD5F3192 /* Models.swift */; };
 		9818B27044574B3936E7C248 /* HarnessImporter.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9F2F808E35CF0170708E1526 /* HarnessImporter.swift */; };
+		AA1000000000000000000002 /* Iconst.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 8C777EDE30A0043D00E94D6C /* Iconst.xcassets */; };
 		ABC2FA85491F8139FC58FC7B /* KeychainStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1F653C8B836CB5A5E5A8A15F /* KeychainStore.swift */; };
 		BC6DA48FEC5F5A5C75D610CB /* StatusBarView.swift in Sources */ = {isa = PBXBuildFile; fileRef = DCDD857BA7EDBC243BF48875 /* StatusBarView.swift */; };
 		C3EC435F5C8124A18538BEB6 /* CoreParsingTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = E737915C5190C0DBA2DB83EF /* CoreParsingTests.swift */; };
@@ -43,6 +44,7 @@
 		48F7D2E940DB870B1A5D3EBE /* PKCE.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PKCE.swift; sourceTree = "<group>"; };
 		81F3D3A5B172B85D52C57836 /* DeepseekUsageTrackerTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = DeepseekUsageTrackerTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		8A1A220DFD53C467F2213DE3 /* AuthTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AuthTests.swift; sourceTree = "<group>"; };
+		8C777EDE30A0043D00E94D6C /* Iconst.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Iconst.xcassets; sourceTree = "<group>"; };
 		93386E1EC570F122CE71C252 /* SettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsView.swift; sourceTree = "<group>"; };
 		9A5585BBD0B5B218BD5F3192 /* Models.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Models.swift; sourceTree = "<group>"; };
 		9F2F808E35CF0170708E1526 /* HarnessImporter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HarnessImporter.swift; sourceTree = "<group>"; };
@@ -94,6 +96,7 @@
 				0AA036DC5D00D0486E18DBF5 /* App */,
 				63D327054CEC6FD4DEDE942C /* Core */,
 				2080EE1B4FAD7DE74BDC10F3 /* UI */,
+				8C777EDE30A0043D00E94D6C /* Iconst.xcassets */,
 			);
 			path = Sources;
 			sourceTree = "<group>";
@@ -134,6 +137,7 @@
 			buildConfigurationList = AD294C58F345F5B427849065 /* Build configuration list for PBXNativeTarget "DeepseekUsageTracker" */;
 			buildPhases = (
 				61563210BAE812CC899C72F8 /* Sources */,
+				AA1000000000000000000003 /* Resources */,
 			);
 			buildRules = (
 			);
@@ -197,6 +201,17 @@
 			);
 		};
 /* End PBXProject section */
+
+/* Begin PBXResourcesBuildPhase section */
+		AA1000000000000000000003 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				AA1000000000000000000002 /* Iconst.xcassets in Resources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXResourcesBuildPhase section */
 
 /* Begin PBXSourcesBuildPhase section */
 		61563210BAE812CC899C72F8 /* Sources */ = {
@@ -369,16 +384,19 @@
 		A1118AD33C681C51DF785D14 /* Release */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
-				ASSETCATALOG_COMPILER_APPICON_NAME = "";
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				ASSETCATALOG_COMPILER_INCLUDE_ALL_APPICON_ASSETS = NO;
 				CODE_SIGN_IDENTITY = "Apple Development";
 				CODE_SIGN_STYLE = Automatic;
 				COMBINE_HIDPI_IMAGES = YES;
 				DEVELOPMENT_TEAM = 2SD8E9M8T7;
 				INFOPLIST_FILE = Resources/Info.plist;
+				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.utilities";
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/../Frameworks",
 				);
+				MARKETING_VERSION = 0.1.0;
 				PRODUCT_BUNDLE_IDENTIFIER = com.deepseekusage.tracker;
 				PRODUCT_NAME = DeepseekUsageTracker;
 				SDKROOT = macosx;
@@ -409,16 +427,19 @@
 		D519A183F916E5BB82E439EC /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
-				ASSETCATALOG_COMPILER_APPICON_NAME = "";
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				ASSETCATALOG_COMPILER_INCLUDE_ALL_APPICON_ASSETS = NO;
 				CODE_SIGN_IDENTITY = "Apple Development";
 				CODE_SIGN_STYLE = Automatic;
 				COMBINE_HIDPI_IMAGES = YES;
 				DEVELOPMENT_TEAM = 2SD8E9M8T7;
 				INFOPLIST_FILE = Resources/Info.plist;
+				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.utilities";
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/../Frameworks",
 				);
+				MARKETING_VERSION = 0.1.0;
 				PRODUCT_BUNDLE_IDENTIFIER = com.deepseekusage.tracker;
 				PRODUCT_NAME = DeepseekUsageTracker;
 				SDKROOT = macosx;

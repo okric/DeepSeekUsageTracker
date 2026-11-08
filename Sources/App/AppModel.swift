@@ -41,6 +41,7 @@ final class AppModel: ObservableObject {
     private let accountNameKey = "accountName"
     private let tokenSourceKey = "tokenSource"
     private let loginConfiguredKey = "didConfigureLoginItem"
+    private let loginItemPathKey = "loginItemPath"
 
     init(
         api: DeepSeekAPI = .shared,
@@ -493,6 +494,8 @@ final class AppModel: ObservableObject {
                 } else if SMAppService.mainApp.status != .notRegistered {
                     try await SMAppService.mainApp.unregister()
                 }
+                defaults.set(true, forKey: loginConfiguredKey)
+                defaults.set(Bundle.main.bundlePath, forKey: loginItemPathKey)
             } catch {
                 launchAtLoginError = error.localizedDescription
             }
@@ -505,19 +508,34 @@ final class AppModel: ObservableObject {
 
     /// The app is installed in /Applications for distribution. On its first launch
     /// there, opt into launch-at-login once; the Settings toggle remains authoritative.
+    private var isInApplicationsFolder: Bool {
+        let path = Bundle.main.bundlePath
+        let homeApplications = FileManager.default.homeDirectoryForCurrentUser
+            .appendingPathComponent("Applications", isDirectory: true)
+            .path
+        return path.hasPrefix("/Applications/") || path.hasPrefix(homeApplications + "/")
+    }
+
     private func configureLoginItemOnFirstLaunchIfNeeded() {
-        guard !defaults.bool(forKey: loginConfiguredKey) else { return }
-        guard Bundle.main.bundlePath.hasPrefix("/Applications/") else { return }
+        let currentPath = Bundle.main.bundlePath
+        let configured = defaults.bool(forKey: loginConfiguredKey)
+        let configuredPath = defaults.string(forKey: loginItemPathKey)
+        guard !configured || configuredPath != currentPath else { return }
+        guard isInApplicationsFolder else { return }
+
+        func markConfigured() {
+            defaults.set(true, forKey: loginConfiguredKey)
+            defaults.set(currentPath, forKey: loginItemPathKey)
+            refreshLaunchAtLoginStatus()
+        }
 
         switch SMAppService.mainApp.status {
         case .enabled, .requiresApproval:
-            defaults.set(true, forKey: loginConfiguredKey)
-            refreshLaunchAtLoginStatus()
+            markConfigured()
         case .notRegistered, .notFound:
             do {
                 try SMAppService.mainApp.register()
-                defaults.set(true, forKey: loginConfiguredKey)
-                refreshLaunchAtLoginStatus()
+                markConfigured()
             } catch {
                 // Leave the flag unset so a later launch can retry; Settings still
                 // exposes the explicit toggle.

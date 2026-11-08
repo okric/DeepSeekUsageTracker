@@ -13,6 +13,8 @@ struct DeepseekUsageTrackerApp {
             MainActor.assumeIsolated {
                 do {
                     try SMAppService.mainApp.register()
+                    UserDefaults.standard.set(true, forKey: "didConfigureLoginItem")
+                    UserDefaults.standard.set(Bundle.main.bundlePath, forKey: "loginItemPath")
                     print("login-register: ok")
                 } catch {
                     print("login-register: \(error)")
@@ -20,6 +22,21 @@ struct DeepseekUsageTrackerApp {
                 printLoginStatus()
             }
             exit(0)
+        }
+        if CommandLine.arguments.contains("--login-unregister") {
+            Task { @MainActor in
+                do {
+                    try await SMAppService.mainApp.unregister()
+                    UserDefaults.standard.set(true, forKey: "didConfigureLoginItem")
+                    UserDefaults.standard.set(Bundle.main.bundlePath, forKey: "loginItemPath")
+                    print("login-unregister: ok")
+                } catch {
+                    print("login-unregister: \(error)")
+                }
+                printLoginStatus()
+                exit(0)
+            }
+            RunLoop.main.run()
         }
 
         MainActor.assumeIsolated {
