@@ -39,6 +39,12 @@ struct SettingsView: View {
             }
 
             Section {
+                launchAtLoginContent
+            } header: {
+                Text("Startup")
+            }
+
+            Section {
                 privacyContent
             } header: {
                 Text("Privacy & Security")
@@ -48,6 +54,7 @@ struct SettingsView: View {
         .frame(width: 540, height: 740)
         .onAppear {
             model.checkHarnessAvailability()
+            model.refreshLaunchAtLoginStatus()
         }
     }
 
@@ -281,6 +288,47 @@ struct SettingsView: View {
                 .font(.caption)
                 .foregroundStyle(.secondary)
         }
+    }
+
+    // MARK: Startup
+
+    @ViewBuilder
+    private var launchAtLoginContent: some View {
+        Toggle("Launch at login", isOn: Binding(
+            get: { model.launchAtLogin },
+            set: { model.setLaunchAtLogin($0) }
+        ))
+        .disabled(model.isChangingLaunchAtLogin)
+
+        if model.isChangingLaunchAtLogin {
+            HStack(spacing: 8) {
+                ProgressView().controlSize(.small)
+                Text("Updating login item…")
+                    .font(.caption)
+            }
+        }
+
+        if model.launchAtLoginNeedsApproval {
+            Label(
+                "Approval is needed in System Settings → General → Login Items.",
+                systemImage: "exclamationmark.triangle.fill")
+                .font(.caption)
+                .foregroundStyle(.orange)
+            Button("Open Login Items Settings") {
+                model.openLoginItemsSettings()
+            }
+        }
+
+        if let error = model.launchAtLoginError {
+            Text(error)
+                .font(.caption)
+                .foregroundStyle(.red)
+                .lineLimit(2)
+        }
+
+        Text("Starts the menu bar app when you log in. The app must be signed and installed in Applications.")
+            .font(.caption)
+            .foregroundStyle(.secondary)
     }
 
     // MARK: Privacy

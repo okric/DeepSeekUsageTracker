@@ -15,6 +15,7 @@ Maintained by [okric](https://github.com/okric).
 - **Last 30 days** — token total, with a 7-day token/request breakdown. Token counts are currency-neutral; spend is intentionally shown only for *today* because an account can have cost buckets in more than one currency.
 - **Low-balance and session states** — green/normal, orange/low, red/unavailable or rejected credential, with the last good values kept and marked stale.
 - Refresh every 1, 5, 15, or 30 minutes; wake-from-sleep refresh; manual refresh.
+- Launch at login, auto-enabled on first launch from `/Applications`, with an on/off toggle under **Settings → Startup**.
 
 ## First run
 
@@ -64,7 +65,9 @@ xcodebuild -project DeepseekUsageTracker.xcodeproj \
   -derivedDataPath build -destination 'platform=macOS' test
 ```
 
-The checked-in `DeepseekUsageTracker.xcodeproj` is the source of truth. Add or remove files through Xcode’s project navigator so the project updates itself; no project generator is required. The 15 tests cover balance/usage parsing, multi-currency cost selection, date windows, PKCE/URL validation, the loopback callback server, the Harness YAML parser, and the Keychain round-trip.
+The checked-in `DeepseekUsageTracker.xcodeproj` is the source of truth. Add or remove files through Xcode’s project navigator so the project updates itself; no project generator is required.
+
+The project is configured for automatic signing. For your own build, select your Team under **Signing & Capabilities**; the bundle identifier is `com.deepseekusage.tracker`. The 15 tests cover balance/usage parsing, multi-currency cost selection, date windows, PKCE/URL validation, the loopback callback server, the Harness YAML parser, and the Keychain round-trip.
 
 Release build:
 

@@ -1,6 +1,7 @@
 import AppKit
 import Combine
 import Foundation
+import ServiceManagement
 
 @MainActor
 final class AppModel: ObservableObject {
@@ -22,6 +23,10 @@ final class AppModel: ObservableObject {
     @Published private(set) var refreshInterval: TimeInterval = 300
     @Published private(set) var lastError: String?
     @Published private(set) var harnessAvailable = false
+    @Published private(set) var launchAtLogin = false
+    @Published private(set) var launchAtLoginNeedsApproval = false
+    @Published private(set) var launchAtLoginError: String?
+    @Published private(set) var isChangingLaunchAtLogin = false
 
     private let api: DeepSeekAPI
     private let credentials: KeychainStore
@@ -35,6 +40,7 @@ final class AppModel: ObservableObject {
     private let refreshKey = "refreshInterval"
     private let accountNameKey = "accountName"
     private let tokenSourceKey = "tokenSource"
+    private let loginConfiguredKey = "didConfigureLoginItem"
 
     init(
         api: DeepSeekAPI = .shared,
@@ -68,7 +74,13 @@ final class AppModel: ObservableObject {
     // MARK: Lifecycle
 
     func start() {
+        refreshLaunchAtLoginStatus()
         scheduleTimer()
+        Task { @MainActor in
+            // LaunchServices may not know this bundle during the first launch tick.
+            try? await Task.sleep(for: .milliseconds(1_500))
+            configureLoginItemOnFirstLaunchIfNeeded()
+        }
         wakeObserver = NSWorkspace.shared.notificationCenter.addObserver(
             forName: NSWorkspace.didWakeNotification,
             object: nil,
@@ -444,6 +456,77 @@ final class AppModel: ObservableObject {
         return model
     }
     #endif
+
+    // MARK: Launch at login
+
+    func refreshLaunchAtLoginStatus() {
+        switch SMAppService.mainApp.status {
+        case .enabled:
+            launchAtLogin = true
+            launchAtLoginNeedsApproval = false
+        case .requiresApproval:
+            launchAtLogin = true
+            launchAtLoginNeedsApproval = true
+        case .notRegistered, .notFound:
+            launchAtLogin = false
+            launchAtLoginNeedsApproval = false
+        @unknown default:
+            launchAtLogin = false
+            launchAtLoginNeedsApproval = false
+        }
+    }
+
+    func setLaunchAtLogin(_ enabled: Bool) {
+        guard !isChangingLaunchAtLogin else { return }
+        isChangingLaunchAtLogin = true
+        launchAtLoginError = nil
+        Task {
+            defer {
+                isChangingLaunchAtLogin = false
+                refreshLaunchAtLoginStatus()
+            }
+            do {
+                if enabled {
+                    if SMAppService.mainApp.status == .notRegistered {
+                        try SMAppService.mainApp.register()
+                    }
+                } else if SMAppService.mainApp.status != .notRegistered {
+                    try await SMAppService.mainApp.unregister()
+                }
+            } catch {
+                launchAtLoginError = error.localizedDescription
+            }
+        }
+    }
+
+    func openLoginItemsSettings() {
+        SMAppService.openSystemSettingsLoginItems()
+    }
+
+    /// The app is installed in /Applications for distribution. On its first launch
+    /// there, opt into launch-at-login once; the Settings toggle remains authoritative.
+    private func configureLoginItemOnFirstLaunchIfNeeded() {
+        guard !defaults.bool(forKey: loginConfiguredKey) else { return }
+        guard Bundle.main.bundlePath.hasPrefix("/Applications/") else { return }
+
+        switch SMAppService.mainApp.status {
+        case .enabled, .requiresApproval:
+            defaults.set(true, forKey: loginConfiguredKey)
+            refreshLaunchAtLoginStatus()
+        case .notRegistered, .notFound:
+            do {
+                try SMAppService.mainApp.register()
+                defaults.set(true, forKey: loginConfiguredKey)
+                refreshLaunchAtLoginStatus()
+            } catch {
+                // Leave the flag unset so a later launch can retry; Settings still
+                // exposes the explicit toggle.
+                launchAtLoginError = error.localizedDescription
+            }
+        @unknown default:
+            break
+        }
+    }
 
     // MARK: Links
 

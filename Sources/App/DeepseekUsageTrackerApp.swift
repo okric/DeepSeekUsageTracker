@@ -1,8 +1,27 @@
 import AppKit
+import Darwin
+import ServiceManagement
 
 @main
 struct DeepseekUsageTrackerApp {
     static func main() {
+        if CommandLine.arguments.contains("--login-status") {
+            MainActor.assumeIsolated { printLoginStatus() }
+            exit(0)
+        }
+        if CommandLine.arguments.contains("--login-register") {
+            MainActor.assumeIsolated {
+                do {
+                    try SMAppService.mainApp.register()
+                    print("login-register: ok")
+                } catch {
+                    print("login-register: \(error)")
+                }
+                printLoginStatus()
+            }
+            exit(0)
+        }
+
         MainActor.assumeIsolated {
             let app = NSApplication.shared
             // NSApplication holds its delegate weakly, so keep the local alive
@@ -12,6 +31,12 @@ struct DeepseekUsageTrackerApp {
             app.setActivationPolicy(.accessory)
             app.run()
         }
+    }
+
+    @MainActor
+    private static func printLoginStatus() {
+        let status = SMAppService.mainApp.status
+        print("login-status: raw=\(status.rawValue) \(status)")
     }
 }
 
