@@ -10,9 +10,15 @@ KEYCHAIN_PROFILE="okric-notary"
 REPO="okric/${APP_NAME}"
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
-# Version tracks the project's MARKETING_VERSION.
-VERSION="$(sed -n 's/^[[:space:]]*MARKETING_VERSION = //p' "$ROOT/${APP_NAME}.xcodeproj/project.pbxproj" | head -1 | tr -d " ;")"
-[ -n "$VERSION" ] || { echo "MARKETING_VERSION not found"; exit 1; }
+PBXPROJ="$ROOT/${APP_NAME}.xcodeproj/project.pbxproj"
+# Version tracks the project's MARKETING_VERSION, bumped by 0.0.1 on each publish.
+old="$(sed -n 's/^[[:space:]]*MARKETING_VERSION = //p' "$PBXPROJ" | head -1 | tr -d " ;")"
+[ -n "$old" ] || { echo "MARKETING_VERSION not found"; exit 1; }
+major=${old%%.*}; minor_patch=${old#*.}
+minor=${minor_patch%%.*}; patch=${minor_patch#*.}
+VERSION="${major}.${minor}.$((patch + 1))"
+/usr/bin/sed -i '' "s/MARKETING_VERSION = ${old};/MARKETING_VERSION = ${VERSION};/g" "$PBXPROJ"
+echo "Version: ${old} -> ${VERSION}"
 WORK="$(mktemp -d)"
 trap 'rm -rf "$WORK"' EXIT
 
@@ -42,9 +48,17 @@ echo "== DMG =="
 STAGE_DIR="$WORK/${APP_NAME} ${VERSION}"
 mkdir -p "$STAGE_DIR"
 mv "$STAGE" "$STAGE_DIR/${APP_NAME}.app"
-ln -s /Applications "$STAGE_DIR/Applications"
 DMG="$WORK/${APP_NAME}-${VERSION}.dmg"
-hdiutil create -quiet -volname "${APP_NAME} ${VERSION}" -srcfolder "$STAGE_DIR" -ov -format UDZO "$DMG"
+create-dmg \
+  --volname "${APP_NAME} ${VERSION}" \
+  --background "$ROOT/Scripts/dmg-background.png" \
+  --window-size 800 470 \
+  --icon-size 128 \
+  --icon "${APP_NAME}.app" 200 280 \
+  --app-drop-link 600 280 \
+  --hide-extension "${APP_NAME}.app" \
+  "$DMG" "$STAGE_DIR"
+"$ROOT/Scripts/postprocess-dmg.sh" "$DMG" "${APP_NAME} ${VERSION}" "$ROOT/Scripts/dmg-background@2x.png" "${APP_NAME}.app"
 shasum -a 256 "$DMG"
 
 echo "== publish =="
@@ -56,4 +70,6 @@ if ! gh release view "v${VERSION}" --repo "$REPO" >/dev/null 2>&1; then
 fi
 gh release upload "v${VERSION}" --repo "$REPO" "$DMG" --clobber
 echo "Done: https://github.com/$REPO/releases/tag/v${VERSION}"
-rm -rf "$ROOT/build/release"
+
+echo "== cleanup =="
+rm -rf "$ROOT/build"   # Release build + any DMG staging/tmp leftovers under build/
