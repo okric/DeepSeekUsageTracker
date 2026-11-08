@@ -46,21 +46,11 @@ STAGE="$WORK/${APP_NAME}"
 cp -R "$APP" "$STAGE"
 
 echo "== Developer ID sign =="
-# Sparkle ships a framework signed by the Sparkle team. Re-sign it inside-out
-# with our identity so hardened-runtime library validation and notarization
-# see a single, consistent signer.
-FRAMEWORK="$STAGE/Contents/Frameworks/Sparkle.framework"
-if [ -d "$FRAMEWORK" ]; then
-  for nested in \
-    "$FRAMEWORK/Versions/B/Autoupdate" \
-    "$FRAMEWORK/Versions/B/Updater.app" \
-    "$FRAMEWORK/Versions/B/XPCServices/Downloader.xpc" \
-    "$FRAMEWORK/Versions/B/XPCServices/Installer.xpc" \
-    "$FRAMEWORK"; do
-    [ -e "$nested" ] && codesign --force --options runtime --timestamp --sign "$IDENTITY" "$nested"
-  done
-fi
-codesign --force --options runtime --timestamp --sign "$IDENTITY" "$STAGE"
+# Sign inside-out with --deep. Sparkle ships a framework signed by the Sparkle
+# team; every nested helper (Autoupdate, Updater.app, XPC services) must end up
+# signed by us, or Gatekeeper reports "Unnotarized Developer ID" even though
+# the ticket is valid. Manual per-item signing was not enough here.
+codesign --force --deep --options runtime --timestamp --sign "$IDENTITY" "$STAGE"
 codesign --verify --deep --strict "$STAGE"
 
 echo "== notarize (submit + wait) =="
@@ -69,6 +59,7 @@ xcrun notarytool submit "$WORK/submit.zip" --keychain-profile "$KEYCHAIN_PROFILE
 
 echo "== staple =="
 xcrun stapler staple "$STAGE"
+# Hard gate: never publish an app that Gatekeeper rejects.
 spctl -a -t exec -vv "$STAGE"
 
 echo "== DMG =="
@@ -117,3 +108,5 @@ echo "Done: https://github.com/$REPO/releases/tag/v${VERSION}"
 
 echo "== cleanup =="
 rm -rf "$ROOT/build"   # Release build + any DMG staging/tmp leftovers under build/
+# Xcode's own build cache for this project (created by xcodebuild -list, IDE runs)
+rm -rf "$HOME/Library/Developer/Xcode/DerivedData/${APP_NAME}-"*
